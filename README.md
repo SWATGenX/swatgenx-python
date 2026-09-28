@@ -21,7 +21,7 @@ sg.calibration("01451800")
 # {'mode': 'engineer', 'cal_daily_nse': 0.642, 'val_daily_nse': 0.748, ...}
 
 # National groundwater inventory: 28.8M lithology intervals, 7.9M wells, 46 states
-sg.groundwater_at(42.73, -84.55)      # nearest well + lithology log
+sg.groundwater_at(42.73, -84.55)      # nearest well + lithology log (needs SWATGENX_API_KEY)
 sg.groundwater_summary()
 
 # National PFAS monitoring inventory (huc8 = 8-digit hydrologic unit code)
