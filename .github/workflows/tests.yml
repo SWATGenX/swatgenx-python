@@ -21,3 +21,5 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e . pytest
       - run: pytest tests/ -v
+        env:
+          SWATGENX_API_KEY: ${{ secrets.SWATGENX_API_KEY }}
