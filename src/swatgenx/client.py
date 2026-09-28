@@ -47,6 +47,11 @@ def _request(method: str, path: str, *, key: str | None = None, json: dict | Non
     except ValueError:
         body = {"raw": (r.text or "")[:500]}
     if r.status_code == 401:
+        if not key:
+            # No key was sent, so "invalid or revoked" would be false: the endpoint needs one.
+            raise SwatGenXError(
+                "This endpoint needs an API key: pass api_key=... or set SWATGENX_API_KEY. "
+                "Create one at https://www.swatgenx.com -> dashboard -> API keys.", 401, body)
         raise SwatGenXError(
             "Authentication failed — invalid or revoked API key. Sign in at "
             "https://www.swatgenx.com -> dashboard -> API keys.", 401, body)
@@ -90,11 +95,14 @@ def calibration(site_no: str) -> dict | None:
     return None
 
 
-def groundwater_at(lat: float, lon: float, tol_deg: float = 0.05) -> dict:
+def groundwater_at(lat: float, lon: float, tol_deg: float = 0.05, api_key: str | None = None) -> dict:
     """Nearest well to a point from the national groundwater inventory (28.8M lithology
     intervals, 7.9M wells), with its lithology log when available. tol_deg is the search
-    box half-width in degrees (~0.05 = 5 km)."""
-    return _request("GET", "/api/gw-wells/at",
+    box half-width in degrees (~0.05 = 5 km).
+
+    Needs a free account's API key: pass api_key=... or set SWATGENX_API_KEY."""
+    key = (api_key or os.environ.get("SWATGENX_API_KEY") or "").strip() or None
+    return _request("GET", "/api/gw-wells/at", key=key,
                     params={"lat": lat, "lon": lon, "tol": tol_deg})
 
 

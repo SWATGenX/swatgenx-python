@@ -7,9 +7,15 @@ means both the client and the live service are healthy. Authenticated paths
 
 Run: pip install pytest && pytest tests/ -v
 """
+import os
+
 import pytest
 
 import swatgenx as sg
+
+# groundwater_at needs an account's API key (the well-record endpoint is signed-in only). CI passes a dedicated test
+# account's key as the SWATGENX_API_KEY secret; without it these two tests SKIP rather than fail.
+needs_key = pytest.mark.skipif(not os.environ.get("SWATGENX_API_KEY"), reason="SWATGENX_API_KEY not set")
 
 
 def test_catalog_unfiltered():
@@ -44,11 +50,13 @@ def test_calibration_nonexistent_returns_none():
     assert sg.calibration("00000000") is None
 
 
+@needs_key
 def test_groundwater_at_michigan():
     well = sg.groundwater_at(42.73, -84.55)
     assert well.get("found") and well.get("well_id")
 
 
+@needs_key
 def test_groundwater_at_pennsylvania():
     well = sg.groundwater_at(40.602, -75.471)
     assert well.get("found") and well.get("well_id")
@@ -87,3 +95,11 @@ def test_client_requires_key():
 def test_client_bad_key_auth_guidance():
     with pytest.raises(sg.SwatGenXError):
         sg.Client(api_key="not-a-real-key").whoami()
+
+
+def test_groundwater_at_without_a_key_says_a_key_is_needed(monkeypatch):
+    """A keyless call must say the endpoint needs a key, never 'invalid or revoked' (no key was sent)."""
+    monkeypatch.delenv("SWATGENX_API_KEY", raising=False)
+    with pytest.raises(sg.SwatGenXError) as e:
+        sg.groundwater_at(42.73, -84.55)
+    assert e.value.status == 401 and "needs an API key" in str(e.value)
