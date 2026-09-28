@@ -87,7 +87,9 @@ def test_access_info_ladder():
     assert len(info.get("tiers", [])) == 4
 
 
-def test_client_requires_key():
+def test_client_requires_key(monkeypatch):
+    # Client falls back to SWATGENX_API_KEY, which CI now sets; clear it so this still tests the no-key path.
+    monkeypatch.delenv("SWATGENX_API_KEY", raising=False)
     with pytest.raises(sg.SwatGenXError, match="API key"):
         sg.Client(api_key="")
 
