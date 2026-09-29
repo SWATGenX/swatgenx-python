@@ -28,10 +28,9 @@ class SwatGenXError(RuntimeError):
 
 
 _ACCESS_NOTE = (
-    "This action exceeds your current access tier or fair-use allocation. "
-    "Free accounts order under daily allocations; extended access (HUC8 whole-basin, "
-    "SWAT+MODFLOW-6, HUC14 site models) is granted on request via info@swatgenx.com; "
-    "cloud calibration requires account credit."
+    "This action exceeds your current plan or fair-use allocation. "
+    "See swatgenx.access_info() for the plans (read live) or https://www.swatgenx.com/pricing; "
+    "cloud calibration runs on account credit on every plan."
 )
 
 
@@ -65,17 +64,22 @@ def _request(method: str, path: str, *, key: str | None = None, json: dict | Non
 
 # ------------------------------------------------------------------ public (no account)
 def catalog(state: str | None = None, calibrated_only: bool = False,
-            min_channels: int | None = None, max_channels: int | None = None) -> list[dict]:
+            min_channels: int | None = None, max_channels: int | None = None,
+            calibrated: bool | None = None) -> list[dict]:
     """Public example-model catalog: built SWAT+ models across the conterminous US,
     each with structure counts and (when calibrated) cal/val NSE. Filter by two-letter
-    state, calibration status, and channel-count bounds."""
+    state, calibration status (`calibrated_only`, alias `calibrated`), and channel-count
+    bounds. A model counts as calibrated only when the website shows it as calibrated
+    (`calibration_advertised`); a failed or below-satisfactory run does not."""
+    # 0.1.2: the filter was 'any calibration record', so calibrated_only=True returned failed runs (Lane V, 2026-09-29:
+    # state="MI" gave 3 models, one graded failed and one below satisfactory, where /example-models badges one).
+    want_calibrated = bool(calibrated_only) or bool(calibrated)
     payload = _request("GET", "/api/public/example-swat-models")
     out = []
     for m in payload.get("models") or []:
         if state and str(m.get("state") or "").upper() != state.upper():
             continue
-        cal = m.get("calibration")
-        if calibrated_only and not cal:
+        if want_calibrated and not m.get("calibration_advertised"):
             continue
         ch = m.get("n_channels")
         if min_channels is not None and (ch is None or ch < min_channels):
@@ -96,11 +100,12 @@ def calibration(site_no: str) -> dict | None:
 
 
 def groundwater_at(lat: float, lon: float, tol_deg: float = 0.05, api_key: str | None = None) -> dict:
-    """Nearest well to a point from the national groundwater inventory (28.8M lithology
-    intervals, 7.9M wells), with its lithology log when available. tol_deg is the search
+    """Nearest well to a point from the national groundwater inventory (live totals at
+    /api/gw-wells/summary), with its lithology log when available. tol_deg is the search
     box half-width in degrees (~0.05 = 5 km).
 
-    Needs a free account's API key: pass api_key=... or set SWATGENX_API_KEY."""
+    Needs a free account's API key: pass api_key=... or set SWATGENX_API_KEY. The well-record
+    endpoint has been signed-in only since 2026-09-25, so a keyless call cannot succeed."""
     key = (api_key or os.environ.get("SWATGENX_API_KEY") or "").strip() or None
     return _request("GET", "/api/gw-wells/at", key=key,
                     params={"lat": lat, "lon": lon, "tol": tol_deg})
@@ -125,19 +130,33 @@ def pfas_summary() -> dict:
 
 
 def access_info() -> dict:
-    """The SWATGenX access ladder: what guests, members (free key), extended access,
-    and calibration credit each unlock — and how to move up."""
+    """The SWATGenX plans, read LIVE from the site's pricing API (the figures the pricing page
+    sells), plus the rules that are not in that payload. Nothing here is typed: a plan that
+    changes on the site changes here without a package release."""
+    body = _request("GET", "/api/billing/plans")
+    free = (body or {}).get("free_tier") or {}
+    plans = []
+    for row in (body or {}).get("plans") or []:
+        entry = {"plan": row.get("display_name") or row.get("plan_name"), "notes": row.get("notes")}
+        if row.get("quote_only"):
+            entry["price"] = "by quote: info@swatgenx.com"
+        else:
+            entry["price_usd_per_month"] = row.get("monthly_price_usd")
+            # models_unlimited rows carry an abuse backstop, not an allowance; never print it
+            entry["model_builds_per_month"] = ("unlimited" if row.get("models_unlimited")
+                                               else row.get("monthly_model_creation_limit"))
+        plans.append(entry)
     return {
-        "tiers": [
-            {"tier": "guest", "requires": "nothing",
-             "can": "all public data functions in this package + example-model downloads on the website"},
-            {"tier": "member", "requires": "free account + API key (swatgenx.com -> dashboard -> API keys)",
-             "can": "Client.order under fair-use daily allocations; Client.download for owned models"},
-            {"tier": "extended access", "requires": "granted on request: info@swatgenx.com",
-             "can": "HUC8 whole-basin, coupled SWAT+MODFLOW-6, HUC14 30 m site models, higher allocations"},
-            {"tier": "calibration", "requires": "account credit",
-             "can": "cloud calibration campaigns (website dashboard)"},
-        ],
+        "source": "live: https://www.swatgenx.com/api/billing/plans",
+        "pricing_url": "https://www.swatgenx.com/pricing",
+        "free_account": {"lifetime_model_builds": free.get("builds_lifetime"),
+                         "note": "Failed builds are refunded. HUC8 whole-basin orders are open "
+                                 "to every plan."},
+        "paid_plans": plans,
+        "calibration": "Pay per credit on every plan, run on cloud compute (website dashboard). "
+                       "Coupled SWAT+/MODFLOW-6 calibration needs MAX or Department.",
+        "coupled_swat_modflow6": "MAX and Department.",
+        "api_key": "Sign in at swatgenx.com -> dashboard -> API keys (a free account works).",
         "agent_access": "AI agents can use the same platform via MCP: https://www.swatgenx.com/mcp",
     }
 
@@ -158,6 +177,11 @@ class Client:
     def whoami(self) -> dict:
         """Subscription status for the key's account."""
         return _request("GET", "/api/user/subscription-status", key=self.api_key)
+
+    # -- data that needs an account
+    def groundwater_at(self, lat: float, lon: float, tol_deg: float = 0.05) -> dict:
+        """sg.groundwater_at with this client's key (well records are signed-in only)."""
+        return groundwater_at(lat, lon, tol_deg=tol_deg, api_key=self.api_key)
 
     # -- ordering
     def order(self, usgs_station: str | None = None, huc12_outlet: str | None = None,

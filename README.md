@@ -20,8 +20,8 @@ models = sg.catalog(state="FL", calibrated_only=True)
 sg.calibration("01451800")
 # {'mode': 'engineer', 'cal_daily_nse': 0.642, 'val_daily_nse': 0.748, ...}
 
-# National groundwater inventory: 28.8M lithology intervals, 7.9M wells, 46 states
-sg.groundwater_at(42.73, -84.55)      # nearest well + lithology log (needs SWATGENX_API_KEY)
+# National groundwater inventory: 27.7M lithology intervals, 9.28M wells, 48 states (as of 2026-09-29; sg.groundwater_summary() returns the live totals)
+sg.groundwater_at(42.73, -84.55)      # nearest well + lithology log (needs an API key: SWATGENX_API_KEY)
 sg.groundwater_summary()
 
 # National PFAS monitoring inventory (huc8 = 8-digit hydrologic unit code)
@@ -44,23 +44,24 @@ c.download("04124500", vpuid="0406", dest="model.zip")   # ZIP straight to your 
 Builds run on SWATGenX cloud infrastructure from national data (NHDPlus HR, 3DEP,
 gSSURGO, NLCD, PRISM, USGS NWIS); delivery is pull-based — no email round-trip.
 
-## Access ladder
+## Plans and access
 
-| tier | requires | unlocks |
-|---|---|---|
-| guest | nothing | all public data functions |
-| member | free account + API key | model orders (fair-use), downloads |
-| extended | request via info@swatgenx.com | HUC8 whole-basin, SWAT+MODFLOW-6, HUC14 30 m site models |
-| calibration | account credit | cloud calibration campaigns |
-
-`sg.access_info()` returns this ladder programmatically; quota/tier errors raise
-`SwatGenXError` with upgrade guidance.
+These data functions need no account: `catalog()`, `calibration()`, `groundwater_summary()`,
+`pfas_stations()`, `pfas_summary()` and `access_info()`. Well records (`groundwater_at()`, or
+`Client.groundwater_at()`) need a free account's API key, and so do ordering and downloading models,
+within your plan's allocation; cloud calibration is paid from account credit. The plans and what each
+includes are at [swatgenx.com/pricing](https://www.swatgenx.com/pricing), and `sg.access_info()`
+returns them live from the API. Quota and plan errors raise `SwatGenXError` with the next step.
 
 ## AI agents
 
 The same platform is agent-native via a public MCP server:
-**https://www.swatgenx.com/mcp** (see the site's `llms.txt`). This package and the MCP
-server expose the same surface, enforced by the same server-side quotas.
+**https://www.swatgenx.com/mcp** (see the site's `llms.txt`). Every call needs a SWATGenX
+sign-in or an API key. From 15 October 2026, agent access to the model, data and order tools is
+part of the paid plans (Starter, MAX or Department); four tools stay open to any account
+(`search_docs`, `get_doc`, `get_access_info` and `get_engine_info`). This package calls the REST
+API, which that date does not change: the public data functions need no account, and model orders
+use the same fair-use allocation as the web application.
 
 ## Data citations
 

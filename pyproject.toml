@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "swatgenx"
-version = "0.1.1"
+version = "0.1.2"
 description = "Python client for SWATGenX — automated SWAT+/MODFLOW watershed models and open national water datasets for the conterminous US"
 readme = "README.md"
 requires-python = ">=3.9"

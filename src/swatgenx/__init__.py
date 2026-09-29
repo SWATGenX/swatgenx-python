@@ -16,9 +16,9 @@ Ordering and downloading models needs a free account + API key
     c.status(order["order_id"])
     c.download("04124500", vpuid="0406", dest="model.zip")
 
-Access ladder: guest (public data) -> member (free key: fair-use orders + downloads)
--> extended access (info@swatgenx.com: HUC8 / SWAT+MODFLOW-6 / HUC14 site models)
--> calibration (account credit). AI agents can use the same platform via MCP:
+Plans: a free account (fair-use orders + downloads) and paid plans (Starter, MAX;
+Department by quote) -- access_info() reads them live from the site. Calibration runs on
+account credit on every plan. AI agents can use the same platform via MCP:
 https://www.swatgenx.com/mcp
 """
 from .client import (
@@ -33,7 +33,7 @@ from .client import (
     pfas_summary,
 )
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __all__ = [
     "Client", "SwatGenXError", "access_info", "calibration", "catalog",
     "groundwater_at", "groundwater_summary", "pfas_stations", "pfas_summary",
