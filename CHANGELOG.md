@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.1.3 — 2026-11-01
+
+SWATGenX changed who can reach what on 1 November 2026. This release says what the site does now.
+
+- `pfas_stations()` takes `api_key=...` (or `SWATGENX_API_KEY`), and `Client.pfas_stations()` sends the client's key, as
+  `groundwater_at()` does. Since 2026-11-01 the PFAS stations and the well records are for verified accounts and the agencies we
+  work with: a keyless call answers 401, and a key whose account lacks that access answers 403. The keyless 25-station preview is
+  gone.
+- A 402, 403, 413 or 429 raises the site's own sentence when the response carries one (for example "Building, calibrating and
+  downloading models needs a developer plan or a demo. Request access at swatgenx.com/signup."); the package's note is now only the
+  fallback.
+- `access_info()`:
+  - each plan reads `models_kept` (the models a plan keeps; `None` = by quote); `model_builds_per_month` and
+    `lifetime_model_builds` are gone, since the site counts the models kept, not the builds.
+  - `free_account` carries only a note: building, calibrating and downloading models needs a developer plan or a demo. It no longer
+    prints `models_kept` and `model_orders_per_day`, because since 2026-11-01 an account with no plan and no demo is refused every
+    build.
+  - `coupled_swat_modflow6` is renamed `swat_with_modflow6`. It and `calibration` say that calibration we do for you and a
+    steady-state MODFLOW 6 groundwater model are part of a study, quoted at swatgenx.com/work-with-us; calibration you run yourself
+    is paid from credit, on cloud compute.
+  - `api_key` says how to request developer access, and `pricing_url` is the developer plans page (/pricing now redirects to
+    Work with us).
+- The README and the docstrings say which calls need no account (`catalog()`, `calibration()`, `groundwater_summary()`,
+  `pfas_summary()`, `access_info()`) and which need a key.
+
 ## 0.1.2 — 2026-09-29
 
 - `groundwater_at()` sends an API key: `api_key=...`, or `SWATGENX_API_KEY`, or `Client(...).groundwater_at()`.

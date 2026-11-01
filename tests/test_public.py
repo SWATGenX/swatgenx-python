@@ -10,6 +10,7 @@ Run: pip install pytest && pytest tests/ -v
 import os
 
 import pytest
+import requests
 
 import swatgenx as sg
 
@@ -31,9 +32,11 @@ def test_catalog_state_filter():
 
 
 def test_catalog_calibrated_only():
+    """RATCHET: every model the filter returns is advertised as calibrated. The list may be empty: no card is today
+    (CAL-EXAMPLE-TEXT, Lane P 2026-10-27), and the old 'models and' turned that into a failure."""
     models = sg.catalog(calibrated_only=True)
     # 0.1.2: 'calibrated' means what the website shows (calibration_advertised), not 'a record exists'
-    assert models and all(m.get("calibration_advertised") for m in models)
+    assert all(m.get("calibration_advertised") for m in models)
 
 
 def test_catalog_channel_bounds():
@@ -41,10 +44,14 @@ def test_catalog_channel_bounds():
     assert models and all(100 <= m["n_channels"] <= 600 for m in models)
 
 
-def test_calibration_known_model():
-    cal = sg.calibration("01451800")
-    assert cal is not None
-    assert cal.get("cal_daily_nse") is not None
+def test_no_example_card_carries_calibration_today():
+    """CAL-EXAMPLE-TEXT (Lane P, 2026-10-27): the README, the package docstring and the MCP server's instructions say no example card
+    carries calibration. CONTROL that the catalog can return a value: Michigan holds 04112500, the kept card the directory packet uses.
+    When cards carry calibration again this test FAILS on purpose: update those three texts, then this test."""
+    mi = sg.catalog(state="MI")
+    assert any(m["site_no"] == "04112500" for m in mi)          # the control: a kept card is served
+    assert sg.calibration("04112500") is None                    # the claim the texts make, for a kept card
+    assert sg.catalog(calibrated_only=True) == []
 
 
 def test_calibration_nonexistent_returns_none():
@@ -78,9 +85,20 @@ def test_pfas_summary():
     assert s.get("stations", 0) > 5000
 
 
+@needs_key
 def test_pfas_stations_huc8():
     fc = sg.pfas_stations(huc8="04050006")
     assert len(fc.get("features") or []) > 0
+
+
+def test_pfas_stations_without_a_key_says_a_key_is_needed(monkeypatch):
+    """0.1.3: /api/pfas/stations answers 401 to a keyless call since 2026-11-01 15:00 UTC. BROKEN BUILD (0.1.2): the
+    keyless call returned a 25-station preview, so this row did not raise; against today's server 0.1.2 raises 401 too, which
+    is why the offline file test_pfas_stations_key.py carries the evidence (it fails on 0.1.2: no api_key parameter)."""
+    monkeypatch.delenv("SWATGENX_API_KEY", raising=False)
+    with pytest.raises(sg.SwatGenXError) as e:
+        sg.pfas_stations(huc8="04050006")
+    assert e.value.status == 401 and "needs an API key" in str(e.value)
 
 
 def test_access_info_ladder():
@@ -105,7 +123,11 @@ def test_access_info_reads_the_live_plans():
     'guest' tier and 'extended access'; no paid_plans key."""
     a = sg.access_info()
     names = {p["plan"] for p in a["paid_plans"]}
-    assert "Starter" in names and "MAX" in names          # CONTROL: the live payload was read
+    # 0.1.3: compared with the live payload itself, never with typed names (the plans were renamed on 2026-11-01:
+    # 'Starter'/'MAX' -> 'Developer'/'Developer Pro', and 0.1.2's typed control failed daily from then on).
+    live = requests.get(f"{sg.client.BASE}/api/billing/plans", timeout=60).json()
+    want = {r.get("display_name") or r.get("plan_name") for r in live.get("plans") or []}
+    assert want and names == want, (names, want)          # CONTROL: the live payload was read, and non-empty
     text = str(a).lower()
     assert "extended access" not in text and "guest" not in text
 

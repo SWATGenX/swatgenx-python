@@ -1,10 +1,11 @@
 """HTTP client for the SWATGenX public API (thin, dependency-light).
 
 Every call maps 1:1 onto a documented endpoint at https://www.swatgenx.com — the same
-surface the website and the MCP server (https://www.swatgenx.com/mcp) use. Public
-functions need no account; the Client class carries a per-user API key for actions
-that create state (model orders, downloads), where authentication, ownership, and
-fair-use quotas are enforced server-side.
+surface the website and the MCP server (https://www.swatgenx.com/mcp) use. The example-model
+catalog, the inventory summaries and the plan list need no account. The map's data (well records,
+PFAS stations) needs an API key whose account may see it, and actions that create state (model
+orders, downloads) need a developer plan or a demo; the Client class carries the key.
+Authentication, ownership and allocations are enforced server-side.
 """
 from __future__ import annotations
 
@@ -15,7 +16,7 @@ from typing import Any
 import requests
 
 BASE = os.environ.get("SWATGENX_BASE_URL", "https://www.swatgenx.com")
-_UA = {"User-Agent": "swatgenx-python/0.1.0"}
+_UA = {"User-Agent": "swatgenx-python/0.1.3"}
 
 
 class SwatGenXError(RuntimeError):
@@ -27,10 +28,12 @@ class SwatGenXError(RuntimeError):
         self.detail = detail
 
 
+# Lane GM P7 (WORDS_RD_COMPANY_GM 7.5's access_note): the fallback only. Since 2026-11-01 every 403 carries the site's own
+# sentence, which _request raises when the body has one.
 _ACCESS_NOTE = (
-    "This action exceeds your current plan or fair-use allocation. "
-    "See swatgenx.access_info() for the plans (read live) or https://www.swatgenx.com/pricing; "
-    "cloud calibration runs on account credit on every plan."
+    "This action exceeds your current access or fair-use allocation. "
+    "access_info() lists the developer plans (read live). Work that is part of a study is quoted at "
+    "https://www.swatgenx.com/work-with-us, and calibration runs on account credit."
 )
 
 
@@ -55,7 +58,8 @@ def _request(method: str, path: str, *, key: str | None = None, json: dict | Non
             "Authentication failed — invalid or revoked API key. Sign in at "
             "https://www.swatgenx.com -> dashboard -> API keys.", 401, body)
     if r.status_code in (402, 403, 413, 429):
-        raise SwatGenXError(_ACCESS_NOTE, r.status_code, body)
+        said = body.get("message") if isinstance(body, dict) else None
+        raise SwatGenXError(str(said) if said else _ACCESS_NOTE, r.status_code, body)
     if r.status_code >= 400:
         msg = body.get("message") or body.get("error") or f"HTTP {r.status_code}"
         raise SwatGenXError(str(msg), r.status_code, body)
@@ -104,8 +108,10 @@ def groundwater_at(lat: float, lon: float, tol_deg: float = 0.05, api_key: str |
     /api/gw-wells/summary), with its lithology log when available. tol_deg is the search
     box half-width in degrees (~0.05 = 5 km).
 
-    Needs a free account's API key: pass api_key=... or set SWATGENX_API_KEY. The well-record
-    endpoint has been signed-in only since 2026-09-25, so a keyless call cannot succeed."""
+    Needs an API key: pass api_key=... or set SWATGENX_API_KEY. The well records have been signed-in
+    only since 2026-09-25 and, since 2026-11-01, are for verified accounts and the agencies we work with:
+    without a key the site answers 401, and with a key whose account lacks that access, 403.
+    groundwater_summary() stays open."""
     key = (api_key or os.environ.get("SWATGENX_API_KEY") or "").strip() or None
     return _request("GET", "/api/gw-wells/at", key=key,
                     params={"lat": lat, "lon": lon, "tol": tol_deg})
@@ -117,11 +123,19 @@ def groundwater_summary() -> dict:
 
 
 def pfas_stations(bbox: str | None = None, huc12: str | None = None,
-                  huc8: str | None = None) -> dict:
-    """National PFAS monitoring inventory (GeoJSON stations). Filter by bbox
-    ('minLon,minLat,maxLon,maxLat'), huc12, or huc8."""
+                  huc8: str | None = None, api_key: str | None = None) -> dict:
+    """PFAS monitoring stations in an area (GeoJSON). Name the area by bbox
+    ('minLon,minLat,maxLon,maxLat'), huc12, or huc8 (an 8-digit code).
+
+    Needs an API key: pass api_key=... or set SWATGENX_API_KEY. Since 2026-11-01 the map's feature
+    data is for verified accounts and the agencies we work with: without a key the site answers 401,
+    and with a key whose account lacks that access, 403. The error carries the site's own sentence.
+    pfas_summary() stays open."""
+    # 0.1.3: the station endpoint answers 401 to a keyless call since 2026-11-01 15:00 UTC, so this sends a key as
+    # groundwater_at does; a keyless call raises SwatGenXError(401, 'needs an API key').
+    key = (api_key or os.environ.get("SWATGENX_API_KEY") or "").strip() or None
     params = {k: v for k, v in (("bbox", bbox), ("huc12", huc12), ("huc8", huc8)) if v}
-    return _request("GET", "/api/pfas/stations", params=params)
+    return _request("GET", "/api/pfas/stations", key=key, params=params)
 
 
 def pfas_summary() -> dict:
@@ -130,11 +144,10 @@ def pfas_summary() -> dict:
 
 
 def access_info() -> dict:
-    """The SWATGenX plans, read LIVE from the site's pricing API (the figures the pricing page
-    sells), plus the rules that are not in that payload. Nothing here is typed: a plan that
+    """The SWATGenX plans, read LIVE from the site's pricing API (the figures the developer plans
+    page sells), plus the rules that are not in that payload. Nothing here is typed: a plan that
     changes on the site changes here without a package release."""
     body = _request("GET", "/api/billing/plans")
-    free = (body or {}).get("free_tier") or {}
     plans = []
     for row in (body or {}).get("plans") or []:
         entry = {"plan": row.get("display_name") or row.get("plan_name"), "notes": row.get("notes")}
@@ -142,21 +155,22 @@ def access_info() -> dict:
             entry["price"] = "by quote: info@swatgenx.com"
         else:
             entry["price_usd_per_month"] = row.get("monthly_price_usd")
-            # models_unlimited rows carry an abuse backstop, not an allowance; never print it
-            entry["model_builds_per_month"] = ("unlimited" if row.get("models_unlimited")
-                                               else row.get("monthly_model_creation_limit"))
+        # A plan limits the models KEPT (None = by quote), never the builds a month.
+        entry["models_kept"] = row.get("models_held_limit")
         plans.append(entry)
     return {
         "source": "live: https://www.swatgenx.com/api/billing/plans",
-        "pricing_url": "https://www.swatgenx.com/pricing",
-        "free_account": {"lifetime_model_builds": free.get("builds_lifetime"),
-                         "note": "Failed builds are refunded. HUC8 whole-basin orders are open "
-                                 "to every plan."},
+        "pricing_url": "https://www.swatgenx.com/pricing/developer",
+        # 0.1.3: no allowance figure (an account with no plan and no demo is refused every build since 2026-11-01).
+        "free_account": {"note": "Building, calibrating and downloading models needs a developer plan or a demo. "
+                                 "Request access at https://www.swatgenx.com/signup."},
         "paid_plans": plans,
-        "calibration": "Pay per credit on every plan, run on cloud compute (website dashboard). "
-                       "Coupled SWAT+/MODFLOW-6 calibration needs MAX or Department.",
-        "coupled_swat_modflow6": "MAX and Department.",
-        "api_key": "Sign in at swatgenx.com -> dashboard -> API keys (a free account works).",
+        "calibration": "Calibration is yours to run from credit, on cloud compute; calibration we do for you is part of a study.",
+        "swat_with_modflow6": ("Part of a study we do for you, for a watershed in the states we offer: a steady-state MODFLOW 6 "
+                               "groundwater model built for the same watershed. Request a proposal at "
+                               "https://www.swatgenx.com/work-with-us."),
+        "api_key": ("Request developer access at https://www.swatgenx.com/signup; once we have verified you, your API key is "
+                    "issued the first time you open dashboard -> API keys. Pass it as api_key=... or set SWATGENX_API_KEY."),
         "agent_access": "AI agents can use the same platform via MCP: https://www.swatgenx.com/mcp",
     }
 
@@ -171,7 +185,7 @@ class Client:
         if not self.api_key:
             raise SwatGenXError(
                 "API key required: pass Client(api_key=...) or set SWATGENX_API_KEY. "
-                "Keys: swatgenx.com -> dashboard -> API keys (free account).")
+                "Keys: request developer access at https://www.swatgenx.com/signup, then dashboard -> API keys.")
 
     # -- account
     def whoami(self) -> dict:
@@ -180,8 +194,13 @@ class Client:
 
     # -- data that needs an account
     def groundwater_at(self, lat: float, lon: float, tol_deg: float = 0.05) -> dict:
-        """sg.groundwater_at with this client's key (well records are signed-in only)."""
+        """sg.groundwater_at with this client's key (well records are for verified accounts and the agencies we work
+        with)."""
         return groundwater_at(lat, lon, tol_deg=tol_deg, api_key=self.api_key)
+
+    def pfas_stations(self, bbox: str | None = None, huc12: str | None = None, huc8: str | None = None) -> dict:
+        """sg.pfas_stations with this client's key."""
+        return pfas_stations(bbox=bbox, huc12=huc12, huc8=huc8, api_key=self.api_key)
 
     # -- ordering
     def order(self, usgs_station: str | None = None, huc12_outlet: str | None = None,
@@ -207,13 +226,22 @@ class Client:
         """All of your build orders, newest first."""
         return _request("GET", "/api/model-orders", key=self.api_key)
 
+    # The server's terminal order states (web_application/app/model_order_queue.py STATE_*). Everything else, including
+    # QUEUED_APP, DISPATCHING, RUNNING and any state this client does not know yet, means "keep waiting".
+    TERMINAL_STATES = frozenset({"SUCCESS", "FAILURE", "CANCELLED", "ORPHANED"})
+
     def wait(self, order_id: str, poll_seconds: int = 60, timeout_hours: float = 4.0) -> dict:
-        """Block until an order reaches a terminal state; returns the final record."""
+        """Block until an order reaches a terminal state; returns the final status() record.
+
+        GET /api/model-orders/<id> nests the record under "order" ({"status": "success", "order": {"state": ...}}).
+        Until 2026-10-09 this read a top-level "state" that the route never sends, so it could only end at the deadline,
+        and its "not QUEUED/RUNNING/PENDING" test would also have returned on DISPATCHING."""
         deadline = time.time() + timeout_hours * 3600
         while True:
             rec = self.status(order_id)
-            state = str(rec.get("state") or rec.get("order_state") or "").upper()
-            if state and not any(s in state for s in ("QUEUED", "RUNNING", "PENDING")):
+            order = rec.get("order") if isinstance(rec.get("order"), dict) else rec
+            state = str(order.get("state") or order.get("order_state") or "").upper()
+            if state in self.TERMINAL_STATES:
                 return rec
             if time.time() > deadline:
                 raise SwatGenXError(f"order {order_id} not terminal after {timeout_hours} h "
