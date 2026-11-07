@@ -51,7 +51,7 @@ def test_no_typed_plan_or_free_account_words_remain():
     counts = {p: len(re.findall(p, text)) for p in
               (r"MAX (or|and) Department", r"free account", r"every plan", r"\bStarter\b", r"swatgenx\.com/pricing[\"' ;)]")}
     assert counts == {k: 0 for k in counts}, counts
-    assert "swatgenx.com/pricing/developer" in text       # CONTROL: the census can see a URL it must keep
+    assert "swatgenx.com/signup" in text       # CONTROL: the census can see a URL it must keep (0.1.4: /pricing/developer left with the plans)
 
 
 def test_access_info_free_account_states_no_allowance(monkeypatch):
@@ -61,11 +61,12 @@ def test_access_info_free_account_states_no_allowance(monkeypatch):
     info = c.access_info()
     assert info["paid_plans"][0]["plan"] == "Developer"   # CONTROL: the payload was read
     assert "model_orders_per_day" not in info["free_account"] and "models_kept" not in info["free_account"], info
-    assert info["free_account"]["note"].startswith("Building, calibrating and downloading models needs a developer plan or a demo.")
-    assert info["pricing_url"] == "https://www.swatgenx.com/pricing/developer"
-    assert info["calibration"].startswith("Calibration is yours to run from credit")
+    # 0.1.4 re-pin (invitation only, 2026-11-07; was "needs a developer plan or a demo."): the MCP server's Q1616 Am.6 words.
+    assert info["free_account"]["note"].startswith("Building, calibrating and downloading models needs an invited account or a demo.")
+    assert info["pricing_url"] == "https://www.swatgenx.com/contact"            # 0.1.4 re-pin (was /pricing/developer)
+    assert info["calibration"].startswith("Calibration runs on cloud compute from an account's calibration credit")  # 0.1.4 re-pin
     assert info["swat_with_modflow6"].startswith("Part of a study we do for you")
-    assert info["api_key"].startswith("Request developer access at https://www.swatgenx.com/signup")
+    assert info["api_key"].startswith("Request access at https://www.swatgenx.com/signup")    # 0.1.4 re-pin (was "Request developer access")
 
 
 def test_client_without_a_key_names_the_request_route(monkeypatch):

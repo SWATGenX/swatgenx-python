@@ -102,8 +102,10 @@ def test_pfas_stations_without_a_key_says_a_key_is_needed(monkeypatch):
 
 
 def test_access_info_ladder():
+    # 0.1.4: the site is invitation only since 2026-11-07 and its plans API answers 404; access_info() returns the rules, never raises
+    # (0.1.3 raised SwatGenXError('not_found') here, the scheduled run of 2026-11-07 12:58 UTC).
     info = sg.access_info()
-    assert info.get("paid_plans"), "0.1.2 reads the plans live; the typed 4-tier ladder is gone"
+    assert {"source", "paid_plans", "free_account", "api_key"} <= set(info), info
 
 
 def test_client_requires_key(monkeypatch):
@@ -125,11 +127,17 @@ def test_access_info_reads_the_live_plans():
     names = {p["plan"] for p in a["paid_plans"]}
     # 0.1.3: compared with the live payload itself, never with typed names (the plans were renamed on 2026-11-01:
     # 'Starter'/'MAX' -> 'Developer'/'Developer Pro', and 0.1.2's typed control failed daily from then on).
-    live = requests.get(f"{sg.client.BASE}/api/billing/plans", timeout=60).json()
-    want = {r.get("display_name") or r.get("plan_name") for r in live.get("plans") or []}
-    assert want and names == want, (names, want)          # CONTROL: the live payload was read, and non-empty
+    r = requests.get(f"{sg.client.BASE}/api/billing/plans", timeout=60)
+    if r.status_code == 404:
+        # 0.1.4: invitation only, plans not sold online. CONTROL: the live API really answers 404 (read above), so the empty list is
+        # the site's state and not a reader that saw nothing.
+        assert names == set() and a["source"].startswith("Plans are not sold online"), a
+    else:
+        assert r.status_code == 200, r.status_code
+        want = {x.get("display_name") or x.get("plan_name") for x in r.json().get("plans") or []}
+        assert want and names == want, (names, want)      # CONTROL: the live payload was read, and non-empty
     text = str(a).lower()
-    assert "extended access" not in text and "guest" not in text
+    assert "extended access" not in text and "guest" not in text and "$" not in text and "price" not in str(a["paid_plans"])
 
 
 def test_groundwater_at_without_a_key_says_a_key_is_needed(monkeypatch):

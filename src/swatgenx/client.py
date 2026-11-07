@@ -144,32 +144,34 @@ def pfas_summary() -> dict:
 
 
 def access_info() -> dict:
-    """The SWATGenX plans, read LIVE from the site's pricing API (the figures the developer plans
-    page sells), plus the rules that are not in that payload. Nothing here is typed: a plan that
-    changes on the site changes here without a package release."""
-    body = _request("GET", "/api/billing/plans")
+    """How SWATGenX access works. Since 2026-11-07 the site is invitation only and sells no plan online, so the site's plans API
+    answers 404 and this returns the invitation rules with an empty plan list; when that API answers, each plan is its name and the
+    models it keeps (None = by quote), never a price. These are the words the site's MCP server's get_access_info returns."""
+    try:
+        body = _request("GET", "/api/billing/plans")
+    except SwatGenXError as e:
+        # 0.1.4: the plans API's 404 means "not sold online"; any other error still reaches the caller.
+        if e.status != 404:
+            raise
+        body = None
     plans = []
     for row in (body or {}).get("plans") or []:
-        entry = {"plan": row.get("display_name") or row.get("plan_name"), "notes": row.get("notes")}
-        if row.get("quote_only"):
-            entry["price"] = "by quote: info@swatgenx.com"
-        else:
-            entry["price_usd_per_month"] = row.get("monthly_price_usd")
-        # A plan limits the models KEPT (None = by quote), never the builds a month.
-        entry["models_kept"] = row.get("models_held_limit")
-        plans.append(entry)
+        # The plan name and models_kept only: no price field and no free-text notes, whatever the API answers.
+        plans.append({"plan": row.get("display_name") or row.get("plan_name"), "models_kept": row.get("models_held_limit")})
+    live = isinstance(body, dict) and isinstance(body.get("plans"), list)
     return {
-        "source": "live: https://www.swatgenx.com/api/billing/plans",
-        "pricing_url": "https://www.swatgenx.com/pricing/developer",
-        # 0.1.3: no allowance figure (an account with no plan and no demo is refused every build since 2026-11-01).
-        "free_account": {"note": "Building, calibrating and downloading models needs a developer plan or a demo. "
+        "source": ("live: https://www.swatgenx.com/api/billing/plans" if live else
+                   "Plans are not sold online; accounts are by invitation, for a named research collaboration or a funded study."),
+        "pricing_url": "https://www.swatgenx.com/contact",
+        "free_account": {"note": "Building, calibrating and downloading models needs an invited account or a demo. "
                                  "Request access at https://www.swatgenx.com/signup."},
         "paid_plans": plans,
-        "calibration": "Calibration is yours to run from credit, on cloud compute; calibration we do for you is part of a study.",
+        "calibration": ("Calibration runs on cloud compute from an account's calibration credit; credit is not sold online. "
+                        "Calibration we do for you is part of a study."),
         "swat_with_modflow6": ("Part of a study we do for you, for a watershed in the states we offer: a steady-state MODFLOW 6 "
                                "groundwater model built for the same watershed. Request a proposal at "
                                "https://www.swatgenx.com/work-with-us."),
-        "api_key": ("Request developer access at https://www.swatgenx.com/signup; once we have verified you, your API key is "
+        "api_key": ("Request access at https://www.swatgenx.com/signup; once we have approved the request, your API key is "
                     "issued the first time you open dashboard -> API keys. Pass it as api_key=... or set SWATGENX_API_KEY."),
         "agent_access": "AI agents can use the same platform via MCP: https://www.swatgenx.com/mcp",
     }
