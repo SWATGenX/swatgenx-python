@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.4 — 2026-11-07
+
+In November 2026 SWATGenX became invitation only: accounts are by invitation, for a named research collaboration or a funded study,
+and plans are not sold online. The site's plans API now answers 404, so 0.1.3's `access_info()` raised `SwatGenXError('not_found')` on
+every call. This release fixes that and says what the site does now.
+
+- `access_info()`:
+  - a 404 from the plans API is no longer an error: the call returns the access rules with an empty `paid_plans` list, and `source`
+    reads "Plans are not sold online; accounts are by invitation, for a named research collaboration or a funded study." Any other
+    error still raises.
+  - each plan carries only its name and `models_kept`, whatever the API answers; the price fields and the plan notes are gone.
+  - `pricing_url` is the contact page, https://www.swatgenx.com/contact.
+  - `free_account`, `calibration` and `api_key` carry the words the site's MCP server returns from `get_access_info`: building,
+    calibrating and downloading models needs an invited account or a demo; calibration runs on cloud compute from an account's
+    calibration credit, which is not sold online; an API key is issued once we have approved an access request.
+- The fallback refusal note points to `Client.whoami()` for your account's plan, and `Client()` without a key says to request access at
+  swatgenx.com/signup.
+- The README and the docstrings say the same.
+
 ## 0.1.3 — 2026-11-01
 
 SWATGenX changed who can reach what on 1 November 2026. This release says what the site does now.

@@ -44,5 +44,5 @@ def test_controls_and_version():
     s = _shipped()
     assert s["README.md"].count("pip install swatgenx") == 1
     assert "https://www.swatgenx.com/mcp" in s["README.md"] and "https://www.swatgenx.com/mcp" in s["__init__.py"]
-    assert swatgenx.__version__ == "0.1.3" and 'version = "0.1.3"' in (_ROOT / "pyproject.toml").read_text()
-    assert swatgenx.client._UA["User-Agent"] == "swatgenx-python/0.1.3"
+    # The version rows moved to test_shipped_text_014.py (0.1.4); this file keeps the 0.1.3 entry's census.
+    assert swatgenx.__version__ != "0.1.2"

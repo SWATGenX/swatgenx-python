@@ -2,9 +2,9 @@
 
 Every call maps 1:1 onto a documented endpoint at https://www.swatgenx.com — the same
 surface the website and the MCP server (https://www.swatgenx.com/mcp) use. The example-model
-catalog, the inventory summaries and the plan list need no account. The map's data (well records,
+catalog, the inventory summaries and access_info() need no account. The map's data (well records,
 PFAS stations) needs an API key whose account may see it, and actions that create state (model
-orders, downloads) need a developer plan or a demo; the Client class carries the key.
+orders, downloads) need an invited account or a demo; the Client class carries the key.
 Authentication, ownership and allocations are enforced server-side.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ from typing import Any
 import requests
 
 BASE = os.environ.get("SWATGENX_BASE_URL", "https://www.swatgenx.com")
-_UA = {"User-Agent": "swatgenx-python/0.1.3"}
+_UA = {"User-Agent": "swatgenx-python/0.1.4"}
 
 
 class SwatGenXError(RuntimeError):
@@ -30,9 +30,10 @@ class SwatGenXError(RuntimeError):
 
 # Lane GM P7 (WORDS_RD_COMPANY_GM 7.5's access_note): the fallback only. Since 2026-11-01 every 403 carries the site's own
 # sentence, which _request raises when the body has one.
+# 0.1.4: the MCP server's access_note (Q1616 Am.6); Client.whoami() stands for get_access_info.
 _ACCESS_NOTE = (
     "This action exceeds your current access or fair-use allocation. "
-    "access_info() lists the developer plans (read live). Work that is part of a study is quoted at "
+    "Client.whoami() reports your account's plan. Work that is part of a study is quoted at "
     "https://www.swatgenx.com/work-with-us, and calibration runs on account credit."
 )
 
@@ -187,7 +188,7 @@ class Client:
         if not self.api_key:
             raise SwatGenXError(
                 "API key required: pass Client(api_key=...) or set SWATGENX_API_KEY. "
-                "Keys: request developer access at https://www.swatgenx.com/signup, then dashboard -> API keys.")
+                "Keys: request access at https://www.swatgenx.com/signup; once we have approved the request, open dashboard -> API keys.")
 
     # -- account
     def whoami(self) -> dict:

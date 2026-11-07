@@ -13,8 +13,8 @@ The map's data is for verified accounts and the agencies we work with; pass an A
     sg.groundwater_at(42.73, -84.55, api_key="...")    # nearest well + lithology log
     sg.pfas_stations(huc8="04050006", api_key="...")   # PFAS stations (8-digit HUC)
 
-Building and downloading models needs a developer plan or a demo, and an API key
-(request developer access at https://www.swatgenx.com/signup; once we have verified you,
+Building and downloading models needs an invited account or a demo, and an API key
+(request access at https://www.swatgenx.com/signup; once we have approved the request,
 open dashboard -> API keys):
 
     c = sg.Client(api_key="...")          # or env SWATGENX_API_KEY
@@ -22,8 +22,9 @@ open dashboard -> API keys):
     c.status(order["order_id"])
     c.download("04124500", vpuid="0406", dest="model.zip")
 
-access_info() reads the developer plans live from the site. Calibration is yours to run
-from credit, on cloud compute; calibration we do for you, and a MODFLOW 6 groundwater
+Accounts are by invitation, for a named research collaboration or a funded study; plans are
+not sold online, and access_info() returns these rules. Calibration runs on cloud compute
+from an account's calibration credit; calibration we do for you, and a MODFLOW 6 groundwater
 model, are part of a study (https://www.swatgenx.com/work-with-us). AI agents can use the
 same platform via MCP: https://www.swatgenx.com/mcp
 """
@@ -39,7 +40,7 @@ from .client import (
     pfas_summary,
 )
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 __all__ = [
     "Client", "SwatGenXError", "access_info", "calibration", "catalog",
     "groundwater_at", "groundwater_summary", "pfas_stations", "pfas_summary",

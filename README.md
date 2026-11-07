@@ -28,10 +28,10 @@ sg.pfas_stations(huc8="04050006")
 sg.pfas_summary()
 ```
 
-## Order and download models — a developer plan or a demo, and an API key
+## Order and download models — an invited account or a demo, and an API key
 
-Request developer access at [swatgenx.com/signup](https://www.swatgenx.com/signup); once we have verified you, open dashboard →
-API keys, then:
+Request access at [swatgenx.com/signup](https://www.swatgenx.com/signup); once we have approved the request, open
+dashboard → API keys, then:
 
 ```python
 c = sg.Client(api_key="...")                    # or env SWATGENX_API_KEY
@@ -44,25 +44,27 @@ c.download("04124500", vpuid="0406", dest="model.zip")   # ZIP straight to your 
 Builds run on SWATGenX cloud infrastructure from national data (NHDPlus HR, 3DEP,
 gSSURGO, NLCD, PRISM, USGS NWIS); delivery is pull-based — no email round-trip.
 
-## Plans and access
+## Access
 
 These calls need no account: `catalog()`, `calibration()`, `groundwater_summary()`, `pfas_summary()` and
 `access_info()`. Since 1 November 2026 the map's data, the well records (`groundwater_at()`) and the
 PFAS stations (`pfas_stations()`), is for verified accounts and the agencies we work with: pass an API
-key, or call them on a `Client`. Building, calibrating and downloading models needs a developer plan or
-a demo. Calibration is yours to run from credit, on cloud compute; calibration we do for you, and a
-MODFLOW 6 groundwater model, are part of a study, quoted at
-[swatgenx.com/work-with-us](https://www.swatgenx.com/work-with-us). The developer plans are at
-[swatgenx.com/pricing/developer](https://www.swatgenx.com/pricing/developer), and `sg.access_info()`
-returns them live from the API. A refusal raises `SwatGenXError` with the site's own sentence.
+key, or call them on a `Client`. Accounts are by invitation, for a named research collaboration or a
+funded study, and plans are not sold online: request access at
+[swatgenx.com/signup](https://www.swatgenx.com/signup). Building, calibrating and downloading models
+needs an invited account or a demo. Calibration runs on cloud compute from an account's calibration
+credit; calibration we do for you, and a MODFLOW 6 groundwater model, are part of a study, quoted at
+[swatgenx.com/work-with-us](https://www.swatgenx.com/work-with-us). `sg.access_info()` returns these
+rules, and `Client.whoami()` your account's plan. A refusal raises `SwatGenXError` with the site's own
+sentence.
 
 ## AI agents
 
 The same platform is agent-native via a public MCP server: **https://www.swatgenx.com/mcp** (see the
 site's `llms.txt`). Every call needs a SWATGenX sign-in or an API key. Agent access to the model, data
-and order tools needs an account on a developer plan or Department; four tools stay open to any account
-(`search_docs`, `get_doc`, `get_access_info` and `get_engine_info`). This package calls the REST API,
-under the rules in Plans and access.
+and order tools comes with an account's plan, and accounts are by invitation; four tools stay open to any
+account (`search_docs`, `get_doc`, `get_access_info` and `get_engine_info`). This package calls the REST
+API, under the rules in Access.
 
 ## Data citations
 

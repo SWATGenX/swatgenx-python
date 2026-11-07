@@ -42,7 +42,8 @@ def test_403_without_a_message_falls_back_to_the_access_note(monkeypatch):
     with pytest.raises(c.SwatGenXError) as e:
         c.pfas_summary()
     assert str(e.value) == c._ACCESS_NOTE and e.value.status == 429
-    assert "access_info() lists the developer plans" in c._ACCESS_NOTE and "/pricing" not in c._ACCESS_NOTE
+    # 0.1.4 re-pin (Lane GM's 0.1.4 words; was "access_info() lists the developer plans"): the MCP server's access_note.
+    assert "Client.whoami() reports your account's plan" in c._ACCESS_NOTE and "/pricing" not in c._ACCESS_NOTE
 
 
 def test_no_typed_plan_or_free_account_words_remain():
@@ -73,4 +74,5 @@ def test_client_without_a_key_names_the_request_route(monkeypatch):
     monkeypatch.delenv("SWATGENX_API_KEY", raising=False)
     with pytest.raises(c.SwatGenXError) as e:
         c.Client()
-    assert "request developer access at https://www.swatgenx.com/signup" in str(e.value), str(e.value)
+    # 0.1.4 re-pin (was "request developer access at https://www.swatgenx.com/signup").
+    assert "request access at https://www.swatgenx.com/signup; once we have approved the request" in str(e.value), str(e.value)
