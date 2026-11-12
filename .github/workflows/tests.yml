@@ -10,8 +10,10 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # pinned: ubuntu-latest had moved to 26.04 by the 2026-11-12 run, where setup-python has no 3.9 (requires-python is >=3.9)
+    runs-on: ubuntu-24.04
     strategy:
+      fail-fast: false   # one version's setup failure must not cancel the other's API test
       matrix:
         python-version: ["3.9", "3.12"]
     steps:
