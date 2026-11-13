@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.5 — {release date}
+## 0.1.5 — 2026-11-13
 
 The README, the docstrings and `access_info()` now say what the site and its MCP server say: building, calibrating and downloading
 models needs model access or a demo, and accounts are by invitation, for a named research collaboration or a funded study.
