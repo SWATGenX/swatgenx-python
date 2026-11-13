@@ -28,7 +28,7 @@ sg.pfas_stations(huc8="04050006")
 sg.pfas_summary()
 ```
 
-## Order and download models — an invited account or a demo, and an API key
+## Build and download models — model access or a demo, and an API key
 
 Request access at [swatgenx.com/signup](https://www.swatgenx.com/signup); once we have approved the request, open
 dashboard → API keys, then:
@@ -50,19 +50,19 @@ These calls need no account: `catalog()`, `calibration()`, `groundwater_summary(
 `access_info()`. Since 1 November 2026 the map's data, the well records (`groundwater_at()`) and the
 PFAS stations (`pfas_stations()`), is for verified accounts and the agencies we work with: pass an API
 key, or call them on a `Client`. Accounts are by invitation, for a named research collaboration or a
-funded study, and plans are not sold online: request access at
+funded study: request access at
 [swatgenx.com/signup](https://www.swatgenx.com/signup). Building, calibrating and downloading models
-needs an invited account or a demo. Calibration runs on cloud compute from an account's calibration
+needs model access or a demo. Calibration runs on cloud compute from an account's calibration
 credit; calibration we do for you, and a MODFLOW 6 groundwater model, are part of a study, quoted at
 [swatgenx.com/work-with-us](https://www.swatgenx.com/work-with-us). `sg.access_info()` returns these
-rules, and `Client.whoami()` your account's plan. A refusal raises `SwatGenXError` with the site's own
+rules, and `Client.whoami()` your account's access. A refusal raises `SwatGenXError` with the site's own
 sentence.
 
 ## AI agents
 
 The same platform is agent-native via a public MCP server: **https://www.swatgenx.com/mcp** (see the
-site's `llms.txt`). Every call needs a SWATGenX sign-in or an API key. Agent access to the model, data
-and order tools comes with an account's plan, and accounts are by invitation; four tools stay open to any
+site's `llms.txt`). Every call needs a SWATGenX sign-in or an API key. The model, data
+and build tools need model access, and accounts are by invitation; four tools stay open to any
 account (`search_docs`, `get_doc`, `get_access_info` and `get_engine_info`). This package calls the REST
 API, under the rules in Access.
 
