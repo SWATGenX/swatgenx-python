@@ -11,7 +11,8 @@ import pytest
 
 import swatgenx.client as c
 
-INVITE = ("Plans are not sold online; accounts are by invitation, for a named research collaboration or a funded study.")
+# 0.1.5 re-pin (was "Plans are not sold online; accounts are by invitation, ..."): the MCP server's get_access_info source.
+INVITE = ("Accounts are by invitation, for a named research collaboration or a funded study.")
 
 
 def _not_found(method, path, **kw):
@@ -57,7 +58,8 @@ def test_R3_the_access_words_are_the_mcp_servers(monkeypatch):
     monkeypatch.setattr(c, "_request", _not_found)
     info = c.access_info()
     # BROKEN: 'needs a developer plan or a demo' and 'Request developer access ... once we have verified you'.
-    assert info["free_account"]["note"] == ("Building, calibrating and downloading models needs an invited account or a demo. "
+    # 0.1.5 re-pin (was "needs an invited account or a demo."): the MCP server's words.
+    assert info["free_account"]["note"] == ("Building, calibrating and downloading models needs model access or a demo. "
                                             "Request access at https://www.swatgenx.com/signup.")
     assert info["calibration"] == ("Calibration runs on cloud compute from an account's calibration credit; credit is not sold "
                                    "online. Calibration we do for you is part of a study.")

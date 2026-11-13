@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.5 — {release date}
+
+The README, the docstrings and `access_info()` now say what the site and its MCP server say: building, calibrating and downloading
+models needs model access or a demo, and accounts are by invitation, for a named research collaboration or a funded study.
+
+- `access_info()`: `source` reads "Accounts are by invitation, for a named research collaboration or a funded study.", and the
+  `free_account` note opens with "Building, calibrating and downloading models needs model access or a demo.", as the MCP
+  server's `get_access_info` returns them.
+- The fallback refusal note says `Client.whoami()` reports your account's access.
+- `Client.wait()`'s timeout names the build: "build <id> not terminal after ...".
+- The README's section is "Build and download models", and its AI agents section takes the MCP server's sentence: the model, data and
+  build tools need model access.
+- Method, argument and field names are unchanged: `order()`, `orders()`, `status()`, `order_id`, `paid_plans`, `pricing_url`.
+
 ## 0.1.4 — 2026-11-07
 
 In November 2026 SWATGenX became invitation only: accounts are by invitation, for a named research collaboration or a funded study,

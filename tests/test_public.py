@@ -131,7 +131,8 @@ def test_access_info_reads_the_live_plans():
     if r.status_code == 404:
         # 0.1.4: invitation only, plans not sold online. CONTROL: the live API really answers 404 (read above), so the empty list is
         # the site's state and not a reader that saw nothing.
-        assert names == set() and a["source"].startswith("Plans are not sold online"), a
+        # 0.1.5 re-pin (was startswith("Plans are not sold online")): the MCP server's get_access_info source.
+        assert names == set() and a["source"].startswith("Accounts are by invitation"), a
     else:
         assert r.status_code == 200, r.status_code
         want = {x.get("display_name") or x.get("plan_name") for x in r.json().get("plans") or []}

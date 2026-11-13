@@ -43,7 +43,8 @@ def test_403_without_a_message_falls_back_to_the_access_note(monkeypatch):
         c.pfas_summary()
     assert str(e.value) == c._ACCESS_NOTE and e.value.status == 429
     # 0.1.4 re-pin (Lane GM's 0.1.4 words; was "access_info() lists the developer plans"): the MCP server's access_note.
-    assert "Client.whoami() reports your account's plan" in c._ACCESS_NOTE and "/pricing" not in c._ACCESS_NOTE
+    # 0.1.5 re-pin (Lane GM's 0.1.5 words; was "reports your account's plan").
+    assert "Client.whoami() reports your account's access" in c._ACCESS_NOTE and "/pricing" not in c._ACCESS_NOTE
 
 
 def test_no_typed_plan_or_free_account_words_remain():
@@ -63,7 +64,8 @@ def test_access_info_free_account_states_no_allowance(monkeypatch):
     assert info["paid_plans"][0]["plan"] == "Developer"   # CONTROL: the payload was read
     assert "model_orders_per_day" not in info["free_account"] and "models_kept" not in info["free_account"], info
     # 0.1.4 re-pin (invitation only, 2026-11-07; was "needs a developer plan or a demo."): the MCP server's Q1616 Am.6 words.
-    assert info["free_account"]["note"].startswith("Building, calibrating and downloading models needs an invited account or a demo.")
+    # 0.1.5 re-pin (was "needs an invited account or a demo."): the MCP server's words.
+    assert info["free_account"]["note"].startswith("Building, calibrating and downloading models needs model access or a demo.")
     assert info["pricing_url"] == "https://www.swatgenx.com/contact"            # 0.1.4 re-pin (was /pricing/developer)
     assert info["calibration"].startswith("Calibration runs on cloud compute from an account's calibration credit")  # 0.1.4 re-pin
     assert info["swat_with_modflow6"].startswith("Part of a study we do for you")

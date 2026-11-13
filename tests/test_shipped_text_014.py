@@ -41,12 +41,13 @@ def test_the_invitation_words_and_controls():
     s = _shipped()
     count = {k: len(re.findall(r"invitation", _flat(v), re.I)) for k, v in s.items() if k in ("README.md", "__init__.py", "client.py")}
     assert count == {"README.md": 2, "__init__.py": 1, "client.py": 3}, count
-    assert "Client.whoami() reports your account's plan" in _flat(s["client.py"])
+    # 0.1.5 re-pin (Lane GM's 0.1.5 words; was "reports your account's plan"): the MCP server's access_note.
+    assert "Client.whoami() reports your account's access" in _flat(s["client.py"])
     assert s["README.md"].count("pip install swatgenx") == 1                                   # CONTROL
     assert "https://www.swatgenx.com/mcp" in s["README.md"] and "https://www.swatgenx.com/mcp" in s["__init__.py"]
     assert "swatgenx.com/signup" in s["README.md"] and "swatgenx.com/signup" in s["__init__.py"]   # CONTROL: the census sees URLs
 
 
-def test_version_is_014():
-    assert swatgenx.__version__ == "0.1.4" and 'version = "0.1.4"' in (_ROOT / "pyproject.toml").read_text()
-    assert swatgenx.client._UA["User-Agent"] == "swatgenx-python/0.1.4"
+def test_version_moved_to_015():
+    # The version rows moved to test_shipped_text_015.py (0.1.5); this file keeps the 0.1.4 entry's census.
+    assert swatgenx.__version__ != "0.1.3"

@@ -4,7 +4,7 @@ Every call maps 1:1 onto a documented endpoint at https://www.swatgenx.com — t
 surface the website and the MCP server (https://www.swatgenx.com/mcp) use. The example-model
 catalog, the inventory summaries and access_info() need no account. The map's data (well records,
 PFAS stations) needs an API key whose account may see it, and actions that create state (model
-orders, downloads) need an invited account or a demo; the Client class carries the key.
+builds, downloads) need model access or a demo; the Client class carries the key.
 Authentication, ownership and allocations are enforced server-side.
 """
 from __future__ import annotations
@@ -16,11 +16,11 @@ from typing import Any
 import requests
 
 BASE = os.environ.get("SWATGENX_BASE_URL", "https://www.swatgenx.com")
-_UA = {"User-Agent": "swatgenx-python/0.1.4"}
+_UA = {"User-Agent": "swatgenx-python/0.1.5"}
 
 
 class SwatGenXError(RuntimeError):
-    """API error with the server's message and, when relevant, upgrade guidance."""
+    """API error with the server's message and, when relevant, the site's access note."""
 
     def __init__(self, message: str, status: int | None = None, detail: Any = None):
         super().__init__(message)
@@ -33,7 +33,7 @@ class SwatGenXError(RuntimeError):
 # 0.1.4: the MCP server's access_note (Q1616 Am.6); Client.whoami() stands for get_access_info.
 _ACCESS_NOTE = (
     "This action exceeds your current access or fair-use allocation. "
-    "Client.whoami() reports your account's plan. Work that is part of a study is quoted at "
+    "Client.whoami() reports your account's access. Work that is part of a study is quoted at "
     "https://www.swatgenx.com/work-with-us, and calibration runs on account credit."
 )
 
@@ -145,9 +145,9 @@ def pfas_summary() -> dict:
 
 
 def access_info() -> dict:
-    """How SWATGenX access works. Since 2026-11-07 the site is invitation only and sells no plan online, so the site's plans API
-    answers 404 and this returns the invitation rules with an empty plan list; when that API answers, each plan is its name and the
-    models it keeps (None = by quote), never a price. These are the words the site's MCP server's get_access_info returns."""
+    """How SWATGenX access works. Since 2026-11-07 the site is invitation only and sells no model access online, so the site's
+    /api/billing/plans answers 404 and this returns the invitation rules with an empty paid_plans list; when that API answers,
+    each entry is a name and the models it keeps (None = by quote). These are the words the site's MCP server's get_access_info returns."""
     try:
         body = _request("GET", "/api/billing/plans")
     except SwatGenXError as e:
@@ -162,9 +162,9 @@ def access_info() -> dict:
     live = isinstance(body, dict) and isinstance(body.get("plans"), list)
     return {
         "source": ("live: https://www.swatgenx.com/api/billing/plans" if live else
-                   "Plans are not sold online; accounts are by invitation, for a named research collaboration or a funded study."),
+                   "Accounts are by invitation, for a named research collaboration or a funded study."),
         "pricing_url": "https://www.swatgenx.com/contact",
-        "free_account": {"note": "Building, calibrating and downloading models needs an invited account or a demo. "
+        "free_account": {"note": "Building, calibrating and downloading models needs model access or a demo. "
                                  "Request access at https://www.swatgenx.com/signup."},
         "paid_plans": plans,
         "calibration": ("Calibration runs on cloud compute from an account's calibration credit; credit is not sold online. "
@@ -192,7 +192,7 @@ class Client:
 
     # -- account
     def whoami(self) -> dict:
-        """Subscription status for the key's account."""
+        """The key's account and its access."""
         return _request("GET", "/api/user/subscription-status", key=self.api_key)
 
     # -- data that needs an account
@@ -208,8 +208,8 @@ class Client:
     # -- ordering
     def order(self, usgs_station: str | None = None, huc12_outlet: str | None = None,
               force_rebuild: bool = False) -> dict:
-        """Order a real SWAT+ model build (consumes your fair-use allocation).
-        Provide either a USGS gauge id or a 12-digit HUC12 outlet. Returns the order
+        """Request a real SWAT+ model build (it counts against your fair-use allocation).
+        Provide either a USGS gauge id or a 12-digit HUC12 outlet. Returns the build's
         record incl. order_id; typical build 20 min - 2 h."""
         if huc12_outlet:
             return _request("POST", "/api/model-settings/explorer-watershed", key=self.api_key,
@@ -222,11 +222,11 @@ class Client:
         raise SwatGenXError("provide usgs_station or huc12_outlet")
 
     def status(self, order_id: str) -> dict:
-        """State/stage/timing of a build order."""
+        """State, stage and timing of a build."""
         return _request("GET", f"/api/model-orders/{str(order_id).strip()}", key=self.api_key)
 
     def orders(self) -> dict:
-        """All of your build orders, newest first."""
+        """All of your builds, newest first."""
         return _request("GET", "/api/model-orders", key=self.api_key)
 
     # The server's terminal order states (web_application/app/model_order_queue.py STATE_*). Everything else, including
@@ -234,7 +234,7 @@ class Client:
     TERMINAL_STATES = frozenset({"SUCCESS", "FAILURE", "CANCELLED", "ORPHANED"})
 
     def wait(self, order_id: str, poll_seconds: int = 60, timeout_hours: float = 4.0) -> dict:
-        """Block until an order reaches a terminal state; returns the final status() record.
+        """Block until a build reaches a terminal state; returns the final status() record.
 
         GET /api/model-orders/<id> nests the record under "order" ({"status": "success", "order": {"state": ...}}).
         Until 2026-10-09 this read a top-level "state" that the route never sends, so it could only end at the deadline,
@@ -247,7 +247,7 @@ class Client:
             if state in self.TERMINAL_STATES:
                 return rec
             if time.time() > deadline:
-                raise SwatGenXError(f"order {order_id} not terminal after {timeout_hours} h "
+                raise SwatGenXError(f"build {order_id} not terminal after {timeout_hours} h "
                                     f"(last state: {state or 'unknown'})")
             time.sleep(max(10, poll_seconds))
 
